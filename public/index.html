@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3 Log Server - Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .query-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+        }
+
+        .query-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .results-section {
+            margin-top: 30px;
+        }
+
+        .results-info {
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #2e7d32;
+        }
+
+        .error-info {
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #c62828;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+
+        .results-table th {
+            background-color: #f5f5f5;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 0;
+        }
+
+        .results-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .results-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .log-level {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .log-level.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .log-level.warn {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .log-level.info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .log-level.debug {
+            background-color: #f3e5f5;
+            color: #6a1b9a;
+        }
+
+        .log-content {
+            max-width: 600px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .results-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 M3 Log Server - Query Interface</h1>
+
+        <!-- Filter Query Section -->
+        <div class="query-section">
+            <h2>Filter Query</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="source">Source Application:</label>
+                    <input type="text" id="source" placeholder="e.g., web-app, android-app">
+                </div>
+                <div class="form-group">
+                    <label for="level">Log Level:</label>
+                    <select id="level">
+                        <option value="">All Levels</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="WARN">WARN</option>
+                        <option value="INFO">INFO</option>
+                        <option value="DEBUG">DEBUG</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="traceId">Trace ID:</label>
+                    <input type="text" id="traceId" placeholder="Enter trace ID">
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="form-group">
+                    <label for="limit">Limit:</label>
+                    <input type="number" id="limit" value="1000" min="1" max="10000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="contentRegex">Content Regex:</label>
+                <input type="text" id="contentRegex" placeholder="e.g., error|exception">
+            </div>
+            <div class="button-group" style="margin-top: 15px;">
+                <button onclick="executeFilterQuery()">Query Logs</button>
+                <button onclick="clearFilters()" style="background-color: #757575;">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Custom SQL Query Section -->
+        <div class="query-section">
+            <h2>Custom SQL Query</h2>
+            <div class="form-group">
+                <label for="customSql">SQL Query:</label>
+                <textarea id="customSql" placeholder="SELECT * FROM logs WHERE level = 'ERROR' LIMIT 100"></textarea>
+            </div>
+            <button onclick="executeCustomQuery()" style="margin-top: 10px;">Execute SQL</button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <div id="resultsInfo"></div>
+            <div id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        async function executeFilterQuery() {
+            const source = document.getElementById('source').value;
+            const level = document.getElementById('level').value;
+            const traceId = document.getElementById('traceId').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const contentRegex = document.getElementById('contentRegex').value;
+            const limit = document.getElementById('limit').value;
+
+            const params = new URLSearchParams();
+            if (source) params.append('source', source);
+            if (level) params.append('level', level);
+            if (traceId) params.append('traceId', traceId);
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+            if (contentRegex) params.append('contentRegex', contentRegex);
+            if (limit) params.append('limit', limit);
+
+            showLoading();
+
+            try {
+                const response = await fetch(`/api/query?${params.toString()}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayResults(data.results, data.count);
+                }
+            } catch (error) {
+                showError('Failed to execute query: ' + error.message);
+            }
+        }
+
+        async function executeCustomQuery() {
+            const sql = document.getElementById('customSql').value.trim();
+            if (!sql) {
+                showError('Please enter a SQL query');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch('/api/query/sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sql })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayResults(data.results, data.results.length);
+                }
+            } catch (error) {
+                showError('Failed to execute query: ' + error.message);
+            }
+        }
+
+        function displayResults(results, count) {
+            const infoDiv = document.getElementById('resultsInfo');
+            const containerDiv = document.getElementById('resultsContainer');
+
+            infoDiv.className = 'results-info';
+            infoDiv.textContent = `Found ${count} log entries`;
+
+            if (results.length === 0) {
+                containerDiv.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No results found</p>';
+                return;
+            }
+
+            let html = '<div class="results-container"><table class="results-table">';
+            html += '<thead><tr>';
+            html += '<th>ID</th><th>Source</th><th>Date</th><th>Time</th><th>Level</th><th>Trace ID</th><th>Content</th>';
+            html += '</tr></thead><tbody>';
+
+            results.forEach(log => {
+                html += '<tr>';
+                html += `<td>${log.id}</td>`;
+                html += `<td>${escapeHtml(log.source)}</td>`;
+                html += `<td>${escapeHtml(log.date)}</td>`;
+                html += `<td>${escapeHtml(log.time)}</td>`;
+                html += `<td><span class="log-level ${log.level.toLowerCase()}">${escapeHtml(log.level)}</span></td>`;
+                html += `<td>${escapeHtml(log.trace_id || '-')}</td>`;
+                html += `<td><div class="log-content">${escapeHtml(log.content)}</div></td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            containerDiv.innerHTML = html;
+        }
+
+        function showLoading() {
+            const infoDiv = document.getElementById('resultsInfo');
+            const containerDiv = document.getElementById('resultsContainer');
+            infoDiv.className = 'results-info';
+            infoDiv.textContent = 'Loading...';
+            containerDiv.innerHTML = '<div class="loading">⏳ Executing query...</div>';
+        }
+
+        function showError(message) {
+            const infoDiv = document.getElementById('resultsInfo');
+            const containerDiv = document.getElementById('resultsContainer');
+            infoDiv.className = 'error-info';
+            infoDiv.textContent = '❌ Error: ' + message;
+            containerDiv.innerHTML = '';
+        }
+
+        function clearFilters() {
+            document.getElementById('source').value = '';
+            document.getElementById('level').value = '';
+            document.getElementById('traceId').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('contentRegex').value = '';
+            document.getElementById('limit').value = '1000';
+            document.getElementById('resultsInfo').innerHTML = '';
+            document.getElementById('resultsContainer').innerHTML = '';
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Set default date range (last 7 days)
+        window.addEventListener('load', () => {
+            const today = new Date();
+            const lastWeek = new Date(today);
+            lastWeek.setDate(today.getDate() - 7);
+            
+            document.getElementById('endDate').valueAsDate = today;
+            document.getElementById('startDate').valueAsDate = lastWeek;
+        });
+    </script>
+</body>
+</html>

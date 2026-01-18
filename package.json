@@ -1,0 +1,16 @@
+{
+  "name": "m3-log-server",
+  "version": "1.0.0",
+  "description": "A lightweight log collection and analysis service",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "keywords": ["log", "logging", "analytics"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^9.2.2"
+  }
+}
