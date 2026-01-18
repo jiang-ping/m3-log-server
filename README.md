@@ -1,6 +1,6 @@
 # M3 Log Server
 
-A lightweight log collection and analysis service built with Node.js. This service collects logs from various applications (Node.js, Android, iOS, Web) via HTTP, stores them in SQLite with automatic rotation, and provides a web-based query interface.
+A lightweight log collection and analysis service built with Node.js and TypeScript. This service collects logs from various applications (Node.js, Android, iOS, Web) via HTTP, stores them in SQLite with automatic rotation, and provides a web-based query interface.
 
 ## Features
 
@@ -11,6 +11,7 @@ A lightweight log collection and analysis service built with Node.js. This servi
 - 🎯 **Flexible Search**: Filter by source, level, time range, trace ID, content regex, or custom SQL
 - 📦 **Multi-platform SDKs**: Ready-to-use SDKs for Node.js, Web, Android, and iOS
 - 🐳 **Docker Support**: Easy deployment with Dockerfile
+- 📘 **TypeScript**: Full TypeScript implementation with type safety
 
 ## Quick Start
 
@@ -35,8 +36,14 @@ docker run -d \
 # Install dependencies
 npm install
 
+# Build TypeScript code
+npm run build
+
 # Start the server
 npm start
+
+# Or for development (builds and starts)
+npm run dev
 
 # Or with custom settings
 PORT=8080 DATA_DIR=./data RETENTION_DAYS=14 npm start
@@ -166,8 +173,30 @@ Execute custom SQL query.
 
 ### Node.js SDK
 
+The Node.js SDK is written in TypeScript and provides full type safety.
+
+**TypeScript:**
+```typescript
+import M3Logger from './sdk/node/dist/m3-logger';
+
+// Initialize logger
+const logger = new M3Logger('http://localhost:3000', 'my-node-app');
+logger.init(10); // Batch size of 10
+
+// Log messages
+logger.log('INFO', 'trace-123', 'Application started');
+logger.log('ERROR', 'trace-124', 'Database connection failed');
+
+// Manually flush (optional)
+logger.flush();
+
+// Close logger (flushes remaining logs)
+logger.close();
+```
+
+**JavaScript:**
 ```javascript
-const M3Logger = require('./sdk/node/m3-logger');
+const M3Logger = require('./sdk/node/dist/m3-logger').default;
 
 // Initialize logger
 const logger = new M3Logger('http://localhost:3000', 'my-node-app');
@@ -268,13 +297,48 @@ Logs are automatically cleaned up based on the `RETENTION_DAYS` setting:
 
 ## Development
 
+This project is written in TypeScript and compiled to JavaScript for execution.
+
+### Project Structure
+
+```
+├── src/                    # TypeScript source files
+│   ├── database.ts        # Database operations
+│   ├── server.ts          # HTTP server implementation
+│   └── index.ts           # Entry point
+├── dist/                   # Compiled JavaScript (generated)
+├── sdk/
+│   └── node/              # Node.js SDK
+│       ├── m3-logger.ts   # TypeScript source
+│       └── dist/          # Compiled SDK (generated)
+├── public/                # Static web UI files
+└── tsconfig.json          # TypeScript configuration
+```
+
+### Build Commands
+
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Build TypeScript to JavaScript
+npm run build
+
+# Start development server (builds and runs)
 npm run dev
+
+# Start production server
+npm start
 ```
+
+### Building the Node.js SDK
+
+```bash
+cd sdk/node
+npx tsc
+```
+
+The compiled SDK will be in `sdk/node/dist/`.
 
 ## License
 
