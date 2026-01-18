@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3 Logger Web Example</title>
+</head>
+<body>
+    <h1>M3 Logger Web Example</h1>
+    <button onclick="sendLogs()">Send Test Logs</button>
+    <div id="status"></div>
+
+    <script src="m3-logger.js"></script>
+    <script>
+        // Initialize logger
+        const logger = new M3Logger('http://localhost:3000', 'example-web-app');
+        logger.init(3); // Send logs in batches of 3
+
+        // Log page load
+        logger.log('INFO', null, 'Page loaded');
+
+        function sendLogs() {
+            const status = document.getElementById('status');
+            status.textContent = 'Sending logs...';
+
+            // Send various log levels
+            logger.log('INFO', 'web-001', 'Button clicked');
+            logger.log('DEBUG', 'web-001', 'Processing click event');
+            logger.log('WARN', 'web-002', 'Slow network detected');
+            logger.log('ERROR', 'web-003', 'Failed to load resource');
+
+            // Force flush
+            logger.flush();
+
+            setTimeout(() => {
+                status.textContent = 'Logs sent! Check the query interface at http://localhost:3000/';
+            }, 500);
+        }
+
+        // Log before page unload
+        window.addEventListener('beforeunload', () => {
+            logger.log('INFO', null, 'User leaving page');
+        });
+    </script>
+</body>
+</html>
