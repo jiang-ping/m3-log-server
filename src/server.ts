@@ -205,7 +205,7 @@ class LogServer {
 
     this.server.listen(this.port, () => {
       console.log(`Log server running on port ${this.port}`);
-      console.log(`Data directory: ${this.db.db.name}`);
+      console.log(`Data directory: ${this.db.getDatabaseName()}`);
       console.log(`Log retention: ${this.retentionDays} days`);
     });
   }

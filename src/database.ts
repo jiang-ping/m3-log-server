@@ -33,7 +33,7 @@ interface LogRecord {
 }
 
 class LogDatabase {
-  public db: Database.Database;
+  private db: Database.Database;
 
   constructor(dataDir: string = '/data') {
     // Ensure data directory exists
@@ -44,6 +44,10 @@ class LogDatabase {
     const dbPath = path.join(dataDir, 'logs.db');
     this.db = new Database(dbPath);
     this.initDatabase();
+  }
+
+  public getDatabaseName(): string {
+    return this.db.name;
   }
 
   private initDatabase(): void {
@@ -94,7 +98,7 @@ class LogDatabase {
 
   public queryLogs(filters: QueryFilters = {}): LogRecord[] {
     let query = 'SELECT * FROM logs WHERE 1=1';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (filters.source) {
       query += ' AND source = ?';
@@ -122,9 +126,11 @@ class LogDatabase {
     }
 
     if (filters.contentRegex) {
-      // SQLite doesn't have native regex, so we'll filter in memory
+      // SQLite doesn't have native regex, so we use LIKE for initial filtering
+      // and then apply regex in memory. This is safe from SQL injection because
+      // we use parameterized queries with escaped LIKE wildcards.
       query += ' AND content LIKE ?';
-      // Escape backslashes first, then % and _
+      // Escape backslashes first, then % and _ for LIKE pattern matching
       const escaped = filters.contentRegex
         .replace(/\\/g, '\\\\')
         .replace(/[%_]/g, '\\$&');
