@@ -124,7 +124,11 @@ class LogDatabase {
     if (filters.contentRegex) {
       // SQLite doesn't have native regex, so we'll filter in memory
       query += ' AND content LIKE ?';
-      params.push('%' + filters.contentRegex.replace(/[%_]/g, '\\$&') + '%');
+      // Escape backslashes first, then % and _
+      const escaped = filters.contentRegex
+        .replace(/\\/g, '\\\\')
+        .replace(/[%_]/g, '\\$&');
+      params.push('%' + escaped + '%');
     }
 
     query += ' ORDER BY date DESC, time DESC LIMIT ?';
