@@ -1,5 +1,7 @@
 # M3 Log Server
 
+[English](README.md) | [中文](README_zh.md)
+
 A lightweight log collection and analysis service built with Node.js and TypeScript. This service collects logs from various applications (Node.js, Android, iOS, Web) via HTTP, stores them in SQLite with automatic rotation, and provides a web-based query interface.
 
 ## Features
