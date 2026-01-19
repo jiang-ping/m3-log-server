@@ -1,11 +1,17 @@
-const http = require('http');
-const url = require('url');
-const path = require('path');
-const fs = require('fs');
-const LogDatabase = require('./database');
+import * as http from 'http';
+import * as url from 'url';
+import { ParsedUrlQuery } from 'querystring';
+import * as path from 'path';
+import * as fs from 'fs';
+import LogDatabase, { LogEntry, QueryFilters } from './database';
 
 class LogServer {
-  constructor(port = 3000, dataDir = '/data', retentionDays = 7) {
+  private port: number;
+  private retentionDays: number;
+  private db: LogDatabase;
+  private server: http.Server | null;
+
+  constructor(port: number = 3000, dataDir: string = '/data', retentionDays: number = 7) {
     this.port = port;
     this.retentionDays = retentionDays;
     this.db = new LogDatabase(dataDir);
@@ -15,7 +21,7 @@ class LogServer {
     this.scheduleCleanup();
   }
 
-  scheduleCleanup() {
+  private scheduleCleanup(): void {
     // Run cleanup every 24 hours
     setInterval(() => {
       console.log('Running log cleanup...');
@@ -31,7 +37,7 @@ class LogServer {
     }, 5000);
   }
 
-  parseLogLine(line, source) {
+  private parseLogLine(line: string, source: string): LogEntry {
     // Format: <date>\t<time>\t<level>\t<trace-id>\t<content>
     const parts = line.split('\t');
     if (parts.length < 5) {
@@ -48,8 +54,8 @@ class LogServer {
     };
   }
 
-  async handleRequest(req, res) {
-    const parsedUrl = url.parse(req.url, true);
+  private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    const parsedUrl = url.parse(req.url || '', true);
     const pathname = parsedUrl.pathname;
 
     // CORS headers
@@ -80,7 +86,7 @@ class LogServer {
     }
   }
 
-  async handleLogSubmit(req, res) {
+  private async handleLogSubmit(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     try {
       const body = await this.readBody(req);
       const data = JSON.parse(body);
@@ -92,16 +98,16 @@ class LogServer {
       res.end(JSON.stringify({ success: true }));
     } catch (error) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: error.message }));
+      res.end(JSON.stringify({ error: (error as Error).message }));
     }
   }
 
-  async handleBatchLogSubmit(req, res) {
+  private async handleBatchLogSubmit(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     try {
       const body = await this.readBody(req);
       const data = JSON.parse(body);
 
-      const logs = data.logs.map(logLine => 
+      const logs = data.logs.map((logLine: string) => 
         this.parseLogLine(logLine, data.source || 'unknown')
       );
 
@@ -111,20 +117,20 @@ class LogServer {
       res.end(JSON.stringify({ success: true, count: logs.length }));
     } catch (error) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: error.message }));
+      res.end(JSON.stringify({ error: (error as Error).message }));
     }
   }
 
-  async handleQuery(req, res, query) {
+  private async handleQuery(req: http.IncomingMessage, res: http.ServerResponse, query: ParsedUrlQuery): Promise<void> {
     try {
-      const filters = {
-        source: query.source,
-        level: query.level,
-        traceId: query.traceId,
-        startDate: query.startDate,
-        endDate: query.endDate,
-        contentRegex: query.contentRegex,
-        limit: parseInt(query.limit) || 1000
+      const filters: QueryFilters = {
+        source: query.source as string | undefined,
+        level: query.level as string | undefined,
+        traceId: query.traceId as string | undefined,
+        startDate: query.startDate as string | undefined,
+        endDate: query.endDate as string | undefined,
+        contentRegex: query.contentRegex as string | undefined,
+        limit: parseInt(query.limit as string) || 1000
       };
 
       const results = this.db.queryLogs(filters);
@@ -133,11 +139,11 @@ class LogServer {
       res.end(JSON.stringify({ results, count: results.length }));
     } catch (error) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: error.message }));
+      res.end(JSON.stringify({ error: (error as Error).message }));
     }
   }
 
-  async handleCustomQuery(req, res) {
+  private async handleCustomQuery(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     try {
       const body = await this.readBody(req);
       const data = JSON.parse(body);
@@ -148,11 +154,11 @@ class LogServer {
       res.end(JSON.stringify({ results }));
     } catch (error) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: error.message }));
+      res.end(JSON.stringify({ error: (error as Error).message }));
     }
   }
 
-  serveStaticFile(res, filePath) {
+  private serveStaticFile(res: http.ServerResponse, filePath: string): void {
     const fullPath = path.join(__dirname, '..', filePath);
 
     fs.readFile(fullPath, (err, data) => {
@@ -163,7 +169,7 @@ class LogServer {
       }
 
       const ext = path.extname(fullPath);
-      const contentTypes = {
+      const contentTypes: { [key: string]: string } = {
         '.html': 'text/html',
         '.js': 'application/javascript',
         '.css': 'text/css',
@@ -175,7 +181,7 @@ class LogServer {
     });
   }
 
-  readBody(req) {
+  private readBody(req: http.IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
       let body = '';
       req.on('data', chunk => {
@@ -188,7 +194,7 @@ class LogServer {
     });
   }
 
-  start() {
+  public start(): void {
     this.server = http.createServer((req, res) => {
       this.handleRequest(req, res).catch(err => {
         console.error('Request error:', err);
@@ -199,12 +205,12 @@ class LogServer {
 
     this.server.listen(this.port, () => {
       console.log(`Log server running on port ${this.port}`);
-      console.log(`Data directory: ${this.db.db.name}`);
+      console.log(`Data directory: ${this.db.getDatabaseName()}`);
       console.log(`Log retention: ${this.retentionDays} days`);
     });
   }
 
-  stop() {
+  public stop(): void {
     if (this.server) {
       this.server.close();
     }
@@ -212,4 +218,4 @@ class LogServer {
   }
 }
 
-module.exports = LogServer;
+export default LogServer;

@@ -1,8 +1,8 @@
-const LogServer = require('./server');
+import LogServer from './server';
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000');
 const DATA_DIR = process.env.DATA_DIR || '/data';
-const RETENTION_DAYS = parseInt(process.env.RETENTION_DAYS) || 7;
+const RETENTION_DAYS = parseInt(process.env.RETENTION_DAYS || '7');
 
 const server = new LogServer(PORT, DATA_DIR, RETENTION_DAYS);
 server.start();

@@ -2,17 +2,23 @@
  * M3 Log Server SDK for Node.js
  * 
  * Usage:
- *   const M3Logger = require('./m3-logger');
+ *   import M3Logger from './m3-logger';
  *   const logger = new M3Logger('http://localhost:3000', 'my-app');
  *   logger.init(10); // batch size of 10
  *   logger.log('INFO', 'trace-123', 'Application started');
  */
 
-const http = require('http');
-const https = require('https');
+import * as http from 'http';
+import * as https from 'https';
 
 class M3Logger {
-  constructor(endpoint, source = 'node-app') {
+  private endpoint: string;
+  private source: string;
+  private batchCount: number;
+  private buffer: string[];
+  private autoFlushTimer: NodeJS.Timeout | null;
+
+  constructor(endpoint: string, source: string = 'node-app') {
     this.endpoint = endpoint;
     this.source = source;
     this.batchCount = 1;
@@ -22,9 +28,9 @@ class M3Logger {
 
   /**
    * Initialize the logger
-   * @param {number} batchCount - Number of logs to batch before sending (default: 1)
+   * @param batchCount - Number of logs to batch before sending (default: 1)
    */
-  init(batchCount = 1) {
+  init(batchCount: number = 1): void {
     this.batchCount = batchCount;
     
     // Auto-flush every 5 seconds if there are buffered logs
@@ -37,11 +43,11 @@ class M3Logger {
 
   /**
    * Log a message
-   * @param {string} level - Log level (ERROR, WARN, INFO, DEBUG)
-   * @param {string} traceId - Trace ID for tracking
-   * @param {string} content - Log content
+   * @param level - Log level (ERROR, WARN, INFO, DEBUG)
+   * @param traceId - Trace ID for tracking
+   * @param content - Log content
    */
-  log(level, traceId, content) {
+  log(level: string, traceId: string | null, content: string): void {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
     const time = now.toTimeString().split(' ')[0];
@@ -63,7 +69,7 @@ class M3Logger {
   /**
    * Flush buffered logs to server
    */
-  flush() {
+  flush(): void {
     if (this.buffer.length === 0) return;
 
     const logs = [...this.buffer];
@@ -74,13 +80,13 @@ class M3Logger {
       logs: logs
     });
 
-    const url = new URL(`${this.endpoint}/api/logs`);
-    const protocol = url.protocol === 'https:' ? https : http;
+    const urlObj = new URL(`${this.endpoint}/api/logs`);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
 
-    const options = {
-      hostname: url.hostname,
-      port: url.port || (url.protocol === 'https:' ? 443 : 80),
-      path: url.pathname,
+    const options: http.RequestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+      path: urlObj.pathname,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +119,7 @@ class M3Logger {
   /**
    * Close the logger and flush remaining logs
    */
-  close() {
+  close(): void {
     if (this.autoFlushTimer) {
       clearInterval(this.autoFlushTimer);
     }
@@ -121,4 +127,4 @@ class M3Logger {
   }
 }
 
-module.exports = M3Logger;
+export default M3Logger;

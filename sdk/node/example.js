@@ -1,4 +1,4 @@
-const M3Logger = require('./m3-logger');
+const M3Logger = require('./dist/m3-logger').default;
 
 // Initialize logger
 const logger = new M3Logger('http://localhost:3000', 'example-node-app');

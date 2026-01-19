@@ -1,15 +1,44 @@
 # M3 Logger - Node.js SDK
 
-Node.js SDK for M3 Log Server.
+Node.js SDK for M3 Log Server, written in TypeScript.
 
 ## Installation
 
-Copy `m3-logger.js` to your project.
+1. Build the SDK:
+   ```bash
+   npx tsc
+   ```
+
+2. Copy the `dist` folder to your project.
 
 ## Usage
 
+### TypeScript
+
+```typescript
+import M3Logger from './dist/m3-logger';
+
+// Initialize logger with endpoint and source name
+const logger = new M3Logger('http://localhost:3000', 'my-app');
+
+// Set batch size (optional, default is 1)
+logger.init(10);
+
+// Log messages
+logger.log('INFO', 'trace-id', 'Message content');
+logger.log('ERROR', null, 'Error occurred');
+
+// Manually flush buffered logs
+logger.flush();
+
+// Close logger (flushes remaining logs)
+logger.close();
+```
+
+### JavaScript
+
 ```javascript
-const M3Logger = require('./m3-logger');
+const M3Logger = require('./dist/m3-logger').default;
 
 // Initialize logger with endpoint and source name
 const logger = new M3Logger('http://localhost:3000', 'my-app');

@@ -1,9 +1,41 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import * as path from 'path';
+import * as fs from 'fs';
+
+interface LogEntry {
+  source: string;
+  date: string;
+  time: string;
+  level: string;
+  traceId: string | null;
+  content: string;
+}
+
+interface QueryFilters {
+  source?: string;
+  level?: string;
+  traceId?: string;
+  startDate?: string;
+  endDate?: string;
+  contentRegex?: string;
+  limit?: number;
+}
+
+interface LogRecord {
+  id: number;
+  source: string;
+  date: string;
+  time: string;
+  level: string;
+  trace_id: string | null;
+  content: string;
+  created_at: string;
+}
 
 class LogDatabase {
-  constructor(dataDir = '/data') {
+  private db: Database.Database;
+
+  constructor(dataDir: string = '/data') {
     // Ensure data directory exists
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
@@ -14,7 +46,11 @@ class LogDatabase {
     this.initDatabase();
   }
 
-  initDatabase() {
+  public getDatabaseName(): string {
+    return this.db.name;
+  }
+
+  private initDatabase(): void {
     // Create logs table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS logs (
@@ -25,17 +61,19 @@ class LogDatabase {
         level TEXT NOT NULL,
         trace_id TEXT,
         content TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_source (source),
-        INDEX idx_date (date),
-        INDEX idx_level (level),
-        INDEX idx_trace_id (trace_id),
-        INDEX idx_created_at (created_at)
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Create indexes
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_source ON logs(source)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_date ON logs(date)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_level ON logs(level)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_trace_id ON logs(trace_id)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_created_at ON logs(created_at)`);
   }
 
-  insertLog(source, date, time, level, traceId, content) {
+  public insertLog(source: string, date: string, time: string, level: string, traceId: string | null, content: string): Database.RunResult {
     const stmt = this.db.prepare(`
       INSERT INTO logs (source, date, time, level, trace_id, content)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -43,24 +81,24 @@ class LogDatabase {
     return stmt.run(source, date, time, level, traceId, content);
   }
 
-  insertLogBatch(logs) {
+  public insertLogBatch(logs: LogEntry[]): void {
     const stmt = this.db.prepare(`
       INSERT INTO logs (source, date, time, level, trace_id, content)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    const insertMany = this.db.transaction((logs) => {
+    const insertMany = this.db.transaction((logs: LogEntry[]) => {
       for (const log of logs) {
         stmt.run(log.source, log.date, log.time, log.level, log.traceId, log.content);
       }
     });
 
-    return insertMany(logs);
+    insertMany(logs);
   }
 
-  queryLogs(filters = {}) {
+  public queryLogs(filters: QueryFilters = {}): LogRecord[] {
     let query = 'SELECT * FROM logs WHERE 1=1';
-    const params = [];
+    const params: (string | number)[] = [];
 
     if (filters.source) {
       query += ' AND source = ?';
@@ -88,16 +126,22 @@ class LogDatabase {
     }
 
     if (filters.contentRegex) {
-      // SQLite doesn't have native regex, so we'll filter in memory
+      // SQLite doesn't have native regex, so we use LIKE for initial filtering
+      // and then apply regex in memory. This is safe from SQL injection because
+      // we use parameterized queries with escaped LIKE wildcards.
       query += ' AND content LIKE ?';
-      params.push('%' + filters.contentRegex.replace(/[%_]/g, '\\$&') + '%');
+      // Escape backslashes first, then % and _ for LIKE pattern matching
+      const escaped = filters.contentRegex
+        .replace(/\\/g, '\\\\')
+        .replace(/[%_]/g, '\\$&');
+      params.push('%' + escaped + '%');
     }
 
     query += ' ORDER BY date DESC, time DESC LIMIT ?';
     params.push(filters.limit || 1000);
 
     const stmt = this.db.prepare(query);
-    let results = stmt.all(...params);
+    let results = stmt.all(...params) as LogRecord[];
 
     // Apply regex filter if specified
     if (filters.contentRegex) {
@@ -112,7 +156,7 @@ class LogDatabase {
     return results;
   }
 
-  executeCustomQuery(sql) {
+  public executeCustomQuery(sql: string): any {
     try {
       const stmt = this.db.prepare(sql);
       if (sql.trim().toUpperCase().startsWith('SELECT')) {
@@ -121,11 +165,11 @@ class LogDatabase {
         return stmt.run();
       }
     } catch (error) {
-      throw new Error(`SQL execution error: ${error.message}`);
+      throw new Error(`SQL execution error: ${(error as Error).message}`);
     }
   }
 
-  deleteOldLogs(daysToKeep = 7) {
+  public deleteOldLogs(daysToKeep: number = 7): Database.RunResult {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
@@ -134,9 +178,10 @@ class LogDatabase {
     return stmt.run(cutoffDateStr);
   }
 
-  close() {
+  public close(): void {
     this.db.close();
   }
 }
 
-module.exports = LogDatabase;
+export default LogDatabase;
+export { LogEntry, QueryFilters, LogRecord };
